@@ -1,41 +1,38 @@
 const express = require('express');
-const fs = require('fs');
+const cors = require('cors');
 const app = express();
-const port = process.env.PORT || 3000;
 
-app.use(express.text());
+// In-memory store for logs
+const logs = [];
 
-//Endpoint to receive and store logs
-app.post('/log', (req, res) => {
-    const logEntry = `${req.body}\n`;
-    fs.appendFile('logs.txt', logEntry, (err) => {
-        if (err) {
-            console.error('Fsoc Log write failed:', err);
-            return res.status(500).send('Log write failed');
-        }
-        console.log('Fsoc Log received:', logEntry);
-        res.status(200).send('Log received');
-    });
-});
+// Middleware
+app.use(cors());
+app.use(express.text()); // Parse text/plain for POST /log
 
-// Endpoint to retrieve logs.txt
-app.get('/logs', (req, res) => {
-    fs.readFile('logs.txt', 'utf8', (err, data) => {
-        if (err) {
-            console.error('Fsoc Log read failed:', err);
-            return res.status(404).send('Logs not found');
-        }
-        res.set('Content-Type', 'text/plain');
-        res.status(200).send(data);
-    });
-});
-
-//Root endpoint for verification
+// Root endpoint
 app.get('/', (req, res) => {
-    res.send('Fsoc Server Running');
+    res.send('Server is running');
 });
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// Log retrieval endpoint
+app.get('/logs', (req, res) => {
+    res.json(logs);
+});
+
+// Log submission endpoint for SHADOWGRID exploits
+app.post('/log', (req, res) => {
+    const logEntry = req.body;
+    if (logEntry) {
+        logs.push({ timestamp: new Date().toISOString(), data: logEntry });
+        console.log('Received log:', logEntry);
+        res.status(200).send('Log received');
+    } else {
+        res.status(400).send('Invalid log entry');
+    }
+});
+
+// Start server on Render-assigned port
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
 });
